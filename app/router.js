@@ -1,6 +1,7 @@
 const AuthenticationController = require('./api/authentication')
+const EventsController = require('./api/events')
 const express = require('express')
-const passportService = require('../config/passport')
+require('../config/passport')
 const passport = require('passport')
 
 // Middleware to require login/auth
@@ -11,6 +12,7 @@ module.exports = function (app) {
   // Initializing route groups
   const apiRoutes = express.Router()
   const authRoutes = express.Router()
+  const eventRoutes = express.Router()
 
   // =========================
   // Auth Routes
@@ -24,6 +26,14 @@ module.exports = function (app) {
 
   // Login route
   authRoutes.post('/login', requireLogin, AuthenticationController.login)
+
+  // =========================
+  // Events Routes
+  // =========================
+  apiRoutes.use('/events', eventRoutes)
+
+  // Submit event route
+  eventRoutes.post('/submit', requireAuth, EventsController.submit)
 
   // Set url for API group routes
   app.use('/api', apiRoutes)

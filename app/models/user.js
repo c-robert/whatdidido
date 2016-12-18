@@ -20,10 +20,7 @@ const userSchema = mongoose.Schema({
     verified: Boolean,
     code: Number
   }
-},
-  {
-    timestamps: true
-  })
+})
 
 // Pre-save of user to database, hash password if password is modified or new
 userSchema.pre('save', function (next) {

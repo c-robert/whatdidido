@@ -3,12 +3,28 @@ var mongoose = require('mongoose')
 
 // define the schema for our category model
 var categorySchema = mongoose.Schema({
-  name: String,
-  user: {type: mongoose.Schema.Types.ObjectId, ref: 'User'},
-  code: String,
-  context: String,
-  concurrent: Boolean, // Events associated with a concurrent category can show up at the same time
-  timeout: Number      // Number of milliseconds before an instance of the event associated with this category is considered done
+  name: {
+    type: String,
+    required: true
+  },
+  start: {
+    type: Boolean,    // Set as 'true' if events from this category are 'start' events and 'false' if they are 'stop' events.
+    required: true,
+    default: true
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    ref: 'User'
+  },
+  code: {             // User assignable data associating a code with the event.
+    type: String,
+    required: false
+  },
+  context: {          // User assignable data associating a context with the event.
+    type: String,
+    required: false
+  }
 })
 
 module.exports = mongoose.model('Category', categorySchema)
