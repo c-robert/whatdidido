@@ -2,6 +2,29 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Mocha Test",
+      "program": "${workspaceRoot}\\node_modules\\mocha\\bin\\_mocha",
+      "stopOnEntry": false,
+      "args": [
+            "--grep",
+            "should should return event documents",
+            "${workspaceRoot}\\test\\test_events.js"
+         ],
+      "cwd": "${workspaceRoot}",
+      "runtimeExecutable": null,
+      "runtimeArgs": [
+            "--nolazy"
+         ],
+         "env": {
+            "NODE_ENV": "development"
+         },
+         "externalConsole": false,
+         "sourceMaps": false,
+         "outDir": null
+    },
+    {
       "name": "Launch",
       "type": "node",
       "request": "launch",

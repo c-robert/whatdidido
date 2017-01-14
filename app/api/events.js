@@ -1,7 +1,9 @@
 const Event = require('../models/event')
 const Category = require('../models/category')
+const config = require('../../config/main')
 
 /**
+ * POST
  * Submits an event to the system. This event may be consolidated into
  * a previously created event or a new event will be created. The request
  * will contain the following:
@@ -65,10 +67,11 @@ exports.submit = function (req, res, next) {
 }
 
 /**
+ * POST
  * This method allows one to insert an event with a specific start
  * time. The following are required parameters:
  * body: {
- *  time: Date
+ *  time: Date,
  *  category: mongoose.Schema.Types.ObjectId
  * }
  */
@@ -76,11 +79,12 @@ exports.insert = function (req, res, next) {
 }
 
 /**
+ * DELETE
  * This method allows one to remove the specified events. You must
  * use specific criteria to specify one or more events.
- * body: {
- *  begin: Date
- *  end: Date
+ * query: {
+ *  begin: Date,
+ *  end: Date,
  *  events: [mongoose.Schema.Types.ObjectId]
  * }
  */
@@ -89,24 +93,72 @@ exports.remove = function (req, res, next) {
 }
 
 /**
+ * GET
  * Queries for a list of events matching specific criteria.
  * Query parameters are as follows:
- * body: {
- *  begin: Date
- *  end: Date
- *  category: mongoose.Schema.Types.ObjectId
+ * query: {
+ *  begin: Date, (optional)
+ *  end: Date, (optional)
+ *  categories: [mongoose.Schema.Types.ObjectId], (optional)
+ *  start: Number, (optional)
+ *  pageSize: Number (optional)
  * }
  * Each query is optional. If no parameters are specified then
  * all events for the currently authenticated user will be returned.
+ * There is a default page size and at most that number of
+ * events will be returned. You may specify a different page size.
+ * Also, you can specify a start index of events so that you can
+ * retrieve multiple pages. Dates are specified as a string value
+ * that can be parsed by the Date object.
  * The 'begin' parameter specifies the start date and time for the
- * query.
+ * query. If not specified then all events prior to the end date will
+ * be returned.
  * The 'end' parameter specifies the last valid date and time for the
- * query.
- * The 'category' parameter specifies the specific category to which
- * the event must belong.
+ * query. If not specified then all events newer than the begin date
+ * will be returned.
+ * The 'categories' parameter specifies the specific categories to which
+ * the event must belong. If no category is specified then events will
+ * not be restricted to any category.
+ * The 'start' parameter specifies the start index of the event list
+ * to begin the return parge.
+ * The 'pageSize' parameter specifies the size of the pages to be
+ * returned.
  * @param req
  * @param res
  * @param next
  */
 exports.query = function (req, res, next) {
+  const begin = req.query.begin ? new Date(req.query.begin) : undefined
+  const end = req.query.end ? new Date(req.query.end) : undefined
+  const eventQuery = { user: req.user._id }
+
+  if (begin && !end) {
+    eventQuery.createdAt = { $gte: begin }
+  } else if (!begin && end) {
+    eventQuery.createdAt = { $lte: end }
+  } else if (begin && end) {
+    eventQuery.$and = [
+      { createdAt: { $gte: begin } },
+      { createdAt: { $lte: end } }
+    ]
+  }
+
+  if (req.query.categories && (req.query.categories.length > 0)) {
+    eventQuery.categories = req.query.categories
+  }
+
+  const skip = parseInt(req.query.start || 0)
+  const limit = parseInt(req.query.pageSize || config.defaultPageSize)
+
+  // Find all the matching events and return the documents excluding
+  // the 'user' field.
+  Event.find(eventQuery, { user: 0 }).limit(limit).skip(skip).exec()
+    .then(function (events) {
+      res.status(200).send(events)
+    })
+    .catch(function (err) {
+      // Ran into some sort of problem
+      res.status(422).send({error: 'Error quering for events.'})
+      console.error('Database error finding events: ', err.message)
+    })
 }

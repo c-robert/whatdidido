@@ -1,6 +1,5 @@
 const assert = require('assert')
 const sinon = require('sinon')
-const config = require('../config/main')
 const events = require('../app/api/events')
 
 const express = require('express')
@@ -27,6 +26,7 @@ var app = express()
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({extended: true}))
 app.post('/events/submit', authorize, events.submit)
+app.get('/events/query', authorize, events.query)
 const request = require('supertest')
 
 
@@ -228,6 +228,262 @@ describe('Events', function () {
           assert.equal(console.error.getCall(0).args.length, 2)
           assert.equal(console.error.getCall(0).args[0], 'Database error creating event: ')
           assert.equal(console.error.getCall(0).args[1], 'Error saving event')
+          done()
+        })
+    })
+  })
+
+  describe('GET query', function () {
+    beforeEach(function () {
+      sinon.stub(console, 'error').returns(void 0)
+    })
+
+    afterEach(function () {
+      console.error.restore()
+    })
+
+    it('should accept no parameters at all.', function (done) {
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('find').withArgs()
+        .chain('limit').withArgs(100)
+        .chain('skip').withArgs(0)
+        .chain('exec')
+        .rejects('nothing there')
+      request(app)
+        .get('/events/query')
+        .expect(422, {error: 'Error quering for events.'})
+        .end(function () {
+          eventMock.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error finding events: ')
+          assert.equal(console.error.getCall(0).args[1], 'nothing there')
+          done()
+        })
+    })
+
+    it('should accept a begin date.', function (done) {
+      const conditions = {
+        createdAt: {
+          $gte: new Date('1972-04-09T01:02:03')
+        },
+        user: userId
+      }
+      const projections = {
+        user: 0
+      }
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('find').withArgs(conditions, projections)
+        .chain('limit').withArgs(100)
+        .chain('skip').withArgs(0)
+        .chain('exec')
+        .rejects('nothing there')
+      request(app)
+        .get('/events/query')
+        .query({begin: '1972-04-09T01:02:03'})
+        .expect(422, {error: 'Error quering for events.'})
+        .end(function () {
+          eventMock.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error finding events: ')
+          assert.equal(console.error.getCall(0).args[1], 'nothing there')
+          done()
+        })
+    })
+
+    it('should accept an end date.', function (done) {
+      const conditions = {
+        createdAt: {
+          $lte: new Date('1972-04-09T01:02:03')
+        },
+        user: userId
+      }
+      const projections = {
+        user: 0
+      }
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('find').withArgs(conditions, projections)
+        .chain('limit').withArgs(100)
+        .chain('skip').withArgs(0)
+        .chain('exec')
+        .rejects('nothing there')
+      request(app)
+        .get('/events/query')
+        .query({end: '1972-04-09T01:02:03'})
+        .expect(422, {error: 'Error quering for events.'})
+        .end(function () {
+          eventMock.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error finding events: ')
+          assert.equal(console.error.getCall(0).args[1], 'nothing there')
+          done()
+        })
+    })
+
+    it('should accept both a begin and end date.', function (done) {
+      const conditions = {
+        $and: [
+          {createdAt: {$gte: new Date('1972-04-09T01:02:03')}},
+          {createdAt: {$lte: new Date('2017-01-14T09:08:07')}}
+        ],
+        user: userId
+      }
+      const projections = {
+        user: 0
+      }
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('find').withArgs(conditions, projections)
+        .chain('limit').withArgs(100)
+        .chain('skip').withArgs(0)
+        .chain('exec')
+        .rejects('nothing there')
+      request(app)
+        .get('/events/query')
+        .query({begin: '1972-04-09T01:02:03', end: '2017-01-14T09:08:07'})
+        .expect(422, {error: 'Error quering for events.'})
+        .end(function () {
+          eventMock.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error finding events: ')
+          assert.equal(console.error.getCall(0).args[1], 'nothing there')
+          done()
+        })
+    })
+
+    it('should accept a list of categories.', function (done) {
+      const category1 = mongoose.Types.ObjectId().toString()
+      const category2 = mongoose.Types.ObjectId().toString()
+      const conditions = {
+        categories: [category1, category2],
+        user: userId
+      }
+      const projections = {
+        user: 0
+      }
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('find').withArgs(conditions, projections)
+        .chain('limit').withArgs(100)
+        .chain('skip').withArgs(0)
+        .chain('exec')
+        .rejects('nothing there')
+      request(app)
+        .get('/events/query')
+        .query({categories: [category1, category2]})
+        .expect(422, {error: 'Error quering for events.'})
+        .end(function () {
+          eventMock.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error finding events: ')
+          assert.equal(console.error.getCall(0).args[1], 'nothing there')
+          done()
+        })
+    })
+
+    it('should ignore an empty list of categories.', function (done) {
+      const conditions = {
+        user: userId
+      }
+      const projections = {
+        user: 0
+      }
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('find').withArgs(conditions, projections)
+        .chain('limit').withArgs(100)
+        .chain('skip').withArgs(0)
+        .chain('exec')
+        .rejects('nothing there')
+      request(app)
+        .get('/events/query')
+        .query({categories: []})
+        .expect(422, {error: 'Error quering for events.'})
+        .end(function () {
+          eventMock.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error finding events: ')
+          assert.equal(console.error.getCall(0).args[1], 'nothing there')
+          done()
+        })
+    })
+
+    it('should should accept a page size.', function (done) {
+      const pageSize = 123
+      const conditions = {
+        user: userId
+      }
+      const projections = {
+        user: 0
+      }
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('find').withArgs(conditions, projections)
+        .chain('limit').withArgs(pageSize)
+        .chain('skip').withArgs(0)
+        .chain('exec')
+        .rejects('nothing there')
+      request(app)
+        .get('/events/query')
+        .query({pageSize: pageSize})
+        .expect(422, {error: 'Error quering for events.'})
+        .end(function () {
+          eventMock.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error finding events: ')
+          assert.equal(console.error.getCall(0).args[1], 'nothing there')
+          done()
+        })
+    })
+
+    it('should should accept a start index.', function (done) {
+      const start = 123
+      const conditions = {
+        user: userId
+      }
+      const projections = {
+        user: 0
+      }
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('find').withArgs(conditions, projections)
+        .chain('limit').withArgs(100)
+        .chain('skip').withArgs(start)
+        .chain('exec')
+        .rejects('nothing there')
+      request(app)
+        .get('/events/query')
+        .query({start: start})
+        .expect(422, {error: 'Error quering for events.'})
+        .end(function () {
+          eventMock.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error finding events: ')
+          assert.equal(console.error.getCall(0).args[1], 'nothing there')
+          done()
+        })
+    })
+
+    it('should should return event documents.', function (done) {
+      const eventDocuments = [
+        {doc: 'one'},
+        {doc: 'two'},
+        {doc: 'three'}
+      ]
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('find').withArgs()
+        .chain('limit').withArgs(100)
+        .chain('skip').withArgs(0)
+        .chain('exec')
+        .resolves(eventDocuments)
+      request(app)
+        .get('/events/query')
+        .expect(200, eventDocuments)
+        .end(function () {
+          eventMock.restore()
           done()
         })
     })
