@@ -28,6 +28,7 @@ app.use(bodyParser.urlencoded({extended: true}))
 app.post('/events/submit', authorize, events.submit)
 app.get('/events/query', authorize, events.query)
 app.delete('/events/remove', authorize, events.remove)
+app.post('/events/insert', authorize, events.insert)
 const request = require('supertest')
 
 
@@ -556,7 +557,7 @@ describe('Events', function () {
       request(app)
         .delete('/events/remove')
         .query({events: JSON.stringify(events)})
-        .expect(200)
+        .expect(200, {success: 'Event(s) removed'})
         .end(function () {
           eventMock.restore()
           done()
@@ -579,9 +580,96 @@ describe('Events', function () {
       request(app)
         .delete('/events/remove')
         .query({events: JSON.stringify(events)})
-        .expect(200)
+        .expect(200, {success: 'Event(s) removed'})
         .end(function () {
           eventMock.restore()
+          done()
+        })
+    })
+  })
+
+  describe('POST insert', function () {
+    beforeEach(function () {
+      sinon.stub(console, 'error').returns(void 0)
+    })
+
+    afterEach(function () {
+      console.error.restore()
+    })
+
+    it('should fail if no time is specified.', function (done) {
+      request(app)
+        .post('/events/insert')
+        .expect(422, {error: 'You must include an event time.'})
+        .end(function () {
+          done()
+        })
+    })
+
+    it('should fail if no category is specified.', function (done) {
+      request(app)
+        .post('/events/insert')
+        .send({time: new Date('1972-04-09T01:02:03')})
+        .expect(422, {error: 'You must include an event category.'})
+        .end(function () {
+          done()
+        })
+    })
+
+    it('should return an error if there is a problem creating the event.', function (done) {
+      const category = mongoose.Types.ObjectId()
+      const eventSaveStub = sinon.stub(Event.prototype, 'save')
+      eventSaveStub
+        .callsArgWith(0, {message: 'unable to save'})
+      request(app)
+        .post('/events/insert')
+        .send({time: new Date('1972-04-09T01:02:03'), category: category})
+        .expect(422, {error: 'Error creating event.'})
+        .end(function () {
+          eventSaveStub.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error creating event: ')
+          assert.equal(console.error.getCall(0).args[1], 'unable to save')
+          done()
+        })
+    })
+
+    it('should return an error if it can not update the createdAt property.', function (done) {
+      const category = mongoose.Types.ObjectId()
+      const eventSaveStub = sinon.stub(Event.prototype, 'save')
+      const newEvent = {
+        save: sinon.stub().rejects('unable to modify event')
+      }
+      eventSaveStub
+        .callsArgWith(0, null, newEvent)
+      request(app)
+        .post('/events/insert')
+        .send({time: new Date('1972-04-09T01:02:03'), category: category})
+        .expect(422, {error: 'Error creating event.'})
+        .end(function () {
+          eventSaveStub.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error creating event: ')
+          assert.equal(console.error.getCall(0).args[1], 'unable to modify event')
+          done()
+        })
+    })
+
+    it('should succeed if it was able to create the event.', function (done) {
+      const category = mongoose.Types.ObjectId()
+      const eventSaveStub = sinon.stub(Event.prototype, 'save')
+      const newEvent = {
+        save: sinon.stub().resolves()
+      }
+      eventSaveStub
+        .callsArgWith(0, null, newEvent)
+      request(app)
+        .post('/events/insert')
+        .send({time: new Date('1972-04-09T01:02:03'), category: category})
+        .expect(200, {success: 'Event recorded'})
+        .end(function () {
+          eventSaveStub.restore()
+          assert.equal(newEvent.createdAt.toString(), new Date('1972-04-09T01:02:03').toString())
           done()
         })
     })

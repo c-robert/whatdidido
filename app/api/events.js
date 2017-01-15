@@ -90,6 +90,38 @@ exports.submit = function (req, res, next) {
  * }
  */
 exports.insert = function (req, res, next) {
+  const time = req.body.time ? new Date(req.body.time) : undefined
+  const category = req.body.category
+
+  // Return error if no category provided
+  if (!time) {
+    return res.status(422).send({error: 'You must include an event time.'})
+  }
+
+  // Return error if no category provided
+  if (!category) {
+    return res.status(422).send({error: 'You must include an event category.'})
+  }
+  // Create a new event
+  const event = new Event({
+    count: 1,
+    user: req.user._id,
+    category: category
+  })
+  event.save()
+    .then(function (newEvent) {
+      // Created the event, now set the 'createdAt' property
+      newEvent.createdAt = time
+      return newEvent.save()
+    })
+    .then(function () {
+      res.status(200).send({success: 'Event recorded'})
+    })
+    .catch(function (err) {
+      // Ran into some sort of problem
+      res.status(422).send({error: 'Error creating event.'})
+      console.error('Database error creating event: ', err.message)
+    })
 }
 
 /**
@@ -125,7 +157,7 @@ exports.remove = function (req, res, next) {
 
   Event.remove(removeQuery).exec()
     .then(function () {
-      res.status(200).send()
+      res.status(200).send({success: 'Event(s) removed'})
     })
     .catch(function (err) {
       // Ran into some sort of problem
