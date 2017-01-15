@@ -27,6 +27,7 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({extended: true}))
 app.post('/events/submit', authorize, events.submit)
 app.get('/events/query', authorize, events.query)
+app.delete('/events/remove', authorize, events.remove)
 const request = require('supertest')
 
 
@@ -482,6 +483,103 @@ describe('Events', function () {
       request(app)
         .get('/events/query')
         .expect(200, eventDocuments)
+        .end(function () {
+          eventMock.restore()
+          done()
+        })
+    })
+  })
+
+  describe('DELETE remove', function () {
+    beforeEach(function () {
+      sinon.stub(console, 'error').returns(void 0)
+    })
+
+    afterEach(function () {
+      console.error.restore()
+    })
+
+    it('should fail if no parameters are specified.', function (done) {
+      request(app)
+        .delete('/events/remove')
+        .expect(422, {error: 'You must include at least one of: begin, end, or events.'})
+        .end(function () {
+          done()
+        })
+    })
+
+    it('should fail if a begin or end is specified with an array of events.', function (done) {
+      request(app)
+        .delete('/events/remove')
+        .query({begin: new Date('1972-04-09T01:02:03'), events: ['test']})
+        .expect(422, {error: 'A list of events must not be accompanied by a begin or end date.'})
+        .end(function () {
+          done()
+        })
+    })
+
+    it('should report an error if there is a problem removing events.', function (done) {
+      const events = ['test']
+      const conditions = {
+        _id: events,
+        user: userId
+      }
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('remove').withArgs(conditions)
+        .chain('exec')
+        .rejects('unable to remove documents')
+      request(app)
+        .delete('/events/remove')
+        .query({events: JSON.stringify(events)})
+        .expect(422, {error: 'Error removing events.'})
+        .end(function () {
+          eventMock.restore()
+          assert.equal(console.error.getCall(0).args.length, 2)
+          assert.equal(console.error.getCall(0).args[0], 'Database error removing events: ')
+          assert.equal(console.error.getCall(0).args[1], 'unable to remove documents')
+          done()
+        })
+    })
+
+    it('should remove events listed in the events array.', function (done) {
+      const events = [1, 2]
+      const conditions = {
+        _id: events,
+        user: userId
+      }
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('remove').withArgs(conditions)
+        .chain('exec')
+        .resolves()
+      request(app)
+        .delete('/events/remove')
+        .query({events: JSON.stringify(events)})
+        .expect(200)
+        .end(function () {
+          eventMock.restore()
+          done()
+        })
+    })
+
+    it('should remove events based on begin and end.', function (done) {
+      const conditions = {
+        $and: [
+          {createdAt: {$gte: new Date('1972-04-09T01:02:03')}},
+          {createdAt: {$lte: new Date('2017-01-14T09:08:07')}}
+        ],
+        user: userId
+      }
+      const eventMock = sinon.mock(Event)
+      eventMock
+        .expects('remove').withArgs(conditions)
+        .chain('exec')
+        .resolves()
+      request(app)
+        .delete('/events/remove')
+        .query({events: JSON.stringify(events)})
+        .expect(200)
         .end(function () {
           eventMock.restore()
           done()

@@ -9,7 +9,7 @@
       "stopOnEntry": false,
       "args": [
             "--grep",
-            "should should return event documents",
+            "should remove events based on begin and end",
             "${workspaceRoot}\\test\\test_events.js"
          ],
       "cwd": "${workspaceRoot}",

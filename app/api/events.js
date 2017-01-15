@@ -2,6 +2,20 @@ const Event = require('../models/event')
 const Category = require('../models/category')
 const config = require('../../config/main')
 
+function setupQuery (query, begin, end) {
+  if (begin && !end) {
+    query.createdAt = { $gte: begin }
+  } else if (!begin && end) {
+    query.createdAt = { $lte: end }
+  } else if (begin && end) {
+    query.$and = [
+      { createdAt: { $gte: begin } },
+      { createdAt: { $lte: end } }
+    ]
+  }
+
+  return query
+}
 /**
  * POST
  * Submits an event to the system. This event may be consolidated into
@@ -81,15 +95,43 @@ exports.insert = function (req, res, next) {
 /**
  * DELETE
  * This method allows one to remove the specified events. You must
- * use specific criteria to specify one or more events.
+ * use specific criteria to specify one or more events. If events
+ * are specified then you must not include a begin or end.
  * query: {
- *  begin: Date,
- *  end: Date,
- *  events: [mongoose.Schema.Types.ObjectId]
+ *  begin: Date, [optional]
+ *  end: Date, [optional]
+ *  events: [mongoose.Schema.Types.ObjectId] [optional]
  * }
  */
 exports.remove = function (req, res, next) {
+  const begin = req.query.begin ? new Date(req.query.begin) : undefined
+  const end = req.query.end ? new Date(req.query.end) : undefined
+  const events = req.query.events ? JSON.parse(req.query.events) : undefined
+  const removeQuery = { user: req.user._id }
 
+  if (!begin && !end && !events) {
+    return res.status(422).send({error: 'You must include at least one of: begin, end, or events.'})
+  }
+
+  if (events && (begin || end)) {
+    return res.status(422).send({error: 'A list of events must not be accompanied by a begin or end date.'})
+  }
+
+  if (events) {
+    removeQuery._id = events
+  } else {
+    setupQuery(removeQuery, begin, end)
+  }
+
+  Event.remove(removeQuery).exec()
+    .then(function () {
+      res.status(200).send()
+    })
+    .catch(function (err) {
+      // Ran into some sort of problem
+      res.status(422).send({error: 'Error removing events.'})
+      console.error('Database error removing events: ', err.message)
+    })
 }
 
 /**
@@ -132,16 +174,7 @@ exports.query = function (req, res, next) {
   const end = req.query.end ? new Date(req.query.end) : undefined
   const eventQuery = { user: req.user._id }
 
-  if (begin && !end) {
-    eventQuery.createdAt = { $gte: begin }
-  } else if (!begin && end) {
-    eventQuery.createdAt = { $lte: end }
-  } else if (begin && end) {
-    eventQuery.$and = [
-      { createdAt: { $gte: begin } },
-      { createdAt: { $lte: end } }
-    ]
-  }
+  setupQuery(eventQuery, begin, end)
 
   if (req.query.categories && (req.query.categories.length > 0)) {
     eventQuery.categories = req.query.categories
