@@ -31,7 +31,6 @@ app.delete('/events/remove', authorize, events.remove)
 app.post('/events/insert', authorize, events.insert)
 const request = require('supertest')
 
-
 describe('Events', function () {
   describe('POST submit', function () {
     beforeEach(function () {

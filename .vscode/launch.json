@@ -9,8 +9,8 @@
       "stopOnEntry": false,
       "args": [
             "--grep",
-            "should succeed if it was able to create the event",
-            "${workspaceRoot}\\test\\test_events.js"
+            "succeeds with parameters.",
+            "${workspaceRoot}\\test\\test_categories.js"
          ],
       "cwd": "${workspaceRoot}",
       "runtimeExecutable": null,
